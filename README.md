@@ -1,33 +1,27 @@
-# 💈 Sistema de Gestão para Barbearia
+# Barbearia Gestão - App & Site
 
-Sistema completo e integrado para gestão de barbearia, composto por um **Aplicativo Android** para o barbeiro e um **Site Dinâmico** para agendamento dos clientes.
+Este é o sistema que desenvolvi para automatizar os agendamentos da minha barbearia. Ele resolve o problema de ficar combinando horários pelo WhatsApp, centralizando tudo em um app no meu celular e um site para os clientes.
 
-## 🚀 Link do Site (Produção)
-Acesse para agendamentos: [https://barbearia-gest.netlify.app/](https://barbearia-gest.netlify.app/)
+## 🔗 Link para Agendamento
+Os clientes agendam por aqui: [https://barbearia-gest.netlify.app/](https://barbearia-gest.netlify.app/)
 
-## 📱 Funcionalidades do Aplicativo (Barbeiro)
-*   **Notificações em Tempo Real:** Receba um aviso no celular assim que um cliente agendar pelo site.
-*   **Gestão de Agendamentos:** Visualize a lista de serviços do dia com nome, telefone (WhatsApp) e horário.
-*   **Controle Financeiro:** Relatório de ganhos diários e histórico de faturamento.
-*   **Personalização:**
-    *   Adicione, edite ou remova serviços e preços.
-    *   Gerencie seus horários de atendimento (abrir/fechar slots).
-*   **Acesso Rápido:** Interface otimizada sem necessidade de login repetitivo para o dono.
+## 🛠 Como o sistema funciona
 
-## 🌐 Funcionalidades do Site (Cliente)
-*   **Agendamento Simplificado:** Escolha de serviço e horário disponível em segundos.
-*   **Interface Moderna:** Design limpo, rápido e responsivo (estilo Verde Spotify).
-*   **Confirmação Instantânea:** Sem burocracia, o horário é reservado no banco de dados no momento do clique.
+### O Site (Cliente)
+O cliente entra, escolhe o que quer fazer (Corte, Barba, etc) e vê os horários que eu deixei disponíveis. Assim que ele confirma, o horário sai da lista automaticamente para ninguém mais pegar o mesmo momento.
 
-## 🛠️ Tecnologias Utilizadas
-*   **Android Studio:** Desenvolvimento do aplicativo nativo (Java).
-*   **Firebase Firestore:** Banco de dados NoSQL em tempo real para sincronização entre site e app.
-*   **Firebase Cloud Messaging (Local):** Sistema de detecção de novos agendamentos.
-*   **Netlify:** Hospedagem de alta performance para o site.
-*   **Git/GitHub:** Controle de versão e deploy.
+### O Aplicativo (Meu controle)
+É por onde eu gerencio tudo no dia a dia:
+*   **Aviso de novo cliente:** O celular apita na hora que alguém agenda no site.
+*   **Agenda do dia:** Consigo ver quem vai vir, o que vai fazer e o contato (WhatsApp) da pessoa.
+*   **Controle de dinheiro:** O app soma o que eu ganhei no dia e mostra o histórico de faturamento.
+*   **Flexibilidade:** Posso mudar preços, cadastrar novos serviços ou fechar a barbearia em horários específicos direto pelo app.
 
-## 🔒 Segurança
-O projeto utiliza um arquivo `.gitignore` rigoroso para garantir que chaves de API sensíveis e arquivos de configuração do Firebase (`google-services.json`) não sejam expostos publicamente.
+## 💻 Parte Técnica (resumida)
+*   **App:** Desenvolvido nativo para Android (Java).
+*   **Site:** HTML/JS dinâmico hospedado no Netlify.
+*   **Banco de Dados:** Firebase Firestore (sincroniza o site e o app em tempo real).
+*   **Segurança:** Configurado para não subir chaves sensíveis para o GitHub.
 
 ---
-Desenvolvido por Erick para facilitar a gestão e a experiência do cliente.
+Criado para ser simples, rápido e funcional.
