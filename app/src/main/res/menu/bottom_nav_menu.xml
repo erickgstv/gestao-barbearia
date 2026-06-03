@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/nav_agendamentos"
+        android:icon="@android:drawable/ic_menu_today"
+        android:title="Agenda" />
+    <item
+        android:id="@+id/nav_servicos"
+        android:icon="@android:drawable/ic_menu_agenda"
+        android:title="Preços" />
+    <item
+        android:id="@+id/nav_relatorios"
+        android:icon="@android:drawable/ic_menu_view"
+        android:title="Ganhos" />
+    <item
+        android:id="@+id/nav_horarios"
+        android:icon="@android:drawable/ic_menu_recent_history"
+        android:title="Horários" />
+</menu>
