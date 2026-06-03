@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agendamento - Barbearia</title>
+    <style>
+        :root { --primary: #1DB954; --bg: #F8F9FA; --text: #212121; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); margin: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+        .container { background: #fff; padding: 30px; border-radius: 20px; width: 90%; max-width: 400px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); border: 1px solid #eee; }
+        h2 { text-align: center; color: var(--primary); margin-bottom: 25px; font-weight: 800; }
+        label { display: block; margin-top: 15px; color: #757575; font-size: 13px; font-weight: 600; }
+        input, select { width: 100%; padding: 14px; margin-top: 6px; border: 2px solid #F1F3F5; border-radius: 12px; background: #F8F9FA; box-sizing: border-box; font-size: 15px; }
+        input:focus, select:focus { outline: none; border-color: var(--primary); }
+        button { width: 100%; background: var(--primary); color: white; padding: 16px; border: none; border-radius: 12px; margin-top: 25px; cursor: pointer; font-weight: bold; font-size: 16px; transition: 0.3s; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        .success-msg { display: none; text-align: center; color: var(--primary); font-weight: bold; margin-top: 20px; }
+    </style>
+</head>
+<body>
+
+<div class="container" id="formContainer">
+    <h2>Agendar Horário</h2>
+    
+    <label>Seu Nome</label>
+    <input type="text" id="nomeCliente" placeholder="Digite seu nome completo">
+
+    <label>Telefone (WhatsApp)</label>
+    <input type="tel" id="telefoneCliente" placeholder="(00) 00000-0000">
+
+    <label>E-mail (Opcional)</label>
+    <input type="email" id="emailCliente" placeholder="seu@email.com">
+
+    <label>Serviço</label>
+    <select id="servicoSelect">
+        <option value="">Carregando serviços...</option>
+    </select>
+    
+    <label>Horário</label>
+    <select id="horarioSelect">
+        <option value="">Carregando horários...</option>
+    </select>
+
+    <button id="btnAgendar">CONFIRMAR AGENDAMENTO</button>
+    <div id="msgSucesso" class="success-msg">Agendamento realizado com sucesso!</div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+
+<script>
+    const firebaseConfig = {
+        apiKey: "AIzaSyBS3jysjo2Kr1emjEGngvz2uP7P6X2XbhE",
+        authDomain: "barbearia-gestao-7f136.firebaseapp.com",
+        projectId: "barbearia-gestao-7f136",
+        storageBucket: "barbearia-gestao-7f136.firebasestorage.app",
+        messagingSenderId: "154783199929",
+        appId: "1:154783199929:web:0684f34a996d435d3f6168"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    let servicosCache = [];
+
+    // Carregar Serviços
+    db.collection("servicos").onSnapshot(snap => {
+        const s = document.getElementById('servicoSelect');
+        s.innerHTML = '<option value="">Escolha um serviço</option>';
+        servicosCache = [];
+        snap.forEach(doc => {
+            const data = doc.data();
+            servicosCache.push(data);
+            s.innerHTML += `<option value="${data.nome}">${data.nome} - R$ ${data.preco.toFixed(2)}</option>`;
+        });
+    });
+
+    // Carregar Horários Disponíveis
+    db.collection("config_horarios").where("disponivel", "==", true).onSnapshot(snap => {
+        const h = document.getElementById('horarioSelect');
+        h.innerHTML = '<option value="">Escolha um horário</option>';
+        let list = [];
+        snap.forEach(doc => list.push(doc.data()));
+        list.sort((a,b) => a.hora.localeCompare(b.hora)).forEach(item => {
+            h.innerHTML += `<option value="${item.hora}">${item.hora}</option>`;
+        });
+    });
+
+    // Ação de Agendar
+    document.getElementById('btnAgendar').onclick = async () => {
+        const nome = document.getElementById('nomeCliente').value;
+        const telefone = document.getElementById('telefoneCliente').value;
+        const email = document.getElementById('emailCliente').value;
+        const servicoNome = document.getElementById('servicoSelect').value;
+        const horario = document.getElementById('horarioSelect').value;
+        const btn = document.getElementById('btnAgendar');
+
+        if(!nome || !telefone || !servicoNome || !horario) {
+            alert("Por favor, preencha todos os campos obrigatórios!");
+            return;
+        }
+
+        btn.disabled = true;
+        btn.innerText = "Agendando...";
+
+        try {
+            const servicoObj = servicosCache.find(x => x.nome === servicoNome);
+            const valor = servicoObj ? servicoObj.preco : 0;
+
+            // 1. Ocupar o horário no banco para ninguém mais pegar
+            const query = await db.collection("config_horarios").where("hora", "==", horario).limit(1).get();
+            if(!query.empty) {
+                await db.collection("config_horarios").doc(query.docs[0].id).update({ disponivel: false });
+            }
+
+            // 2. Criar o agendamento
+            await db.collection("agendamentos").add({
+                nomeCliente: nome,
+                telefone: telefone,
+                email: email,
+                servico: `${servicoNome} - R$ ${valor.toFixed(2)}`,
+                horario: horario,
+                data: Date.now(),
+                status: "Pendente"
+            });
+
+            document.getElementById('msgSucesso').style.display = "block";
+            btn.innerText = "AGENDADO!";
+
+            setTimeout(() => {
+                location.reload();
+            }, 2000);
+
+        } catch (e) {
+            alert("Erro ao agendar: " + e.message);
+            btn.disabled = false;
+            btn.innerText = "TENTAR NOVAMENTE";
+        }
+    };
+</script>
+</body>
+</html>
