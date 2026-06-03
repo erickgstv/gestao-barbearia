@@ -30,8 +30,17 @@ import android.content.pm.PackageManager;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
+import com.google.android.material.floatingactionbutton.FloatingActionButton;
+import android.widget.EditText;
+import android.widget.LinearLayout;
+import android.widget.Spinner;
+import android.widget.ArrayAdapter;
+import android.widget.Toast;
+import androidx.appcompat.app.AlertDialog;
+
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -112,6 +121,89 @@ public class MainActivity extends AppCompatActivity {
         ouvirDadosRapidos();
         ouvirAgendamentos();
         verificarPermissaoNotificacao();
+
+        FloatingActionButton fab = findViewById(R.id.fabAddAgendamento);
+        fab.setOnClickListener(v -> mostrarDialogoNovoAgendamento());
+    }
+
+    private void mostrarDialogoNovoAgendamento() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Novo Agendamento Manual");
+
+        LinearLayout layout = new LinearLayout(this);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setPadding(50, 40, 50, 10);
+
+        final EditText etNome = new EditText(this);
+        etNome.setHint("Nome do Cliente");
+        layout.addView(etNome);
+
+        final EditText etTelefone = new EditText(this);
+        etTelefone.setHint("WhatsApp (00) 90000-0000");
+        layout.addView(etTelefone);
+
+        // Spinner de Serviços
+        final Spinner spServico = new Spinner(this);
+        List<String> nomesServicos = listaServicosRapidos.stream()
+                .map(s -> s.getNome() + " - R$ " + String.format("%.2f", s.getPreco()))
+                .collect(Collectors.toList());
+        ArrayAdapter<String> adapterServico = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, nomesServicos);
+        spServico.setAdapter(adapterServico);
+        layout.addView(spServico);
+
+        // Spinner de Horários
+        final Spinner spHorario = new Spinner(this);
+        List<String> horasDisponiveis = listaHorariosRapidos.stream()
+                .filter(Horario::isDisponivel)
+                .map(Horario::getHora)
+                .collect(Collectors.toList());
+        ArrayAdapter<String> adapterHorario = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, horasDisponiveis);
+        spHorario.setAdapter(adapterHorario);
+        layout.addView(spHorario);
+
+        builder.setView(layout);
+
+        builder.setPositiveButton("Agendar", (dialog, which) -> {
+            String nome = etNome.getText().toString().trim();
+            String tel = etTelefone.getText().toString().trim();
+            String servicoSel = spServico.getSelectedItem() != null ? spServico.getSelectedItem().toString() : "";
+            String horaSel = spHorario.getSelectedItem() != null ? spHorario.getSelectedItem().toString() : "";
+
+            if (nome.isEmpty() || tel.isEmpty() || servicoSel.isEmpty() || horaSel.isEmpty()) {
+                Toast.makeText(this, "Preencha todos os campos!", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            salvarAgendamentoManual(nome, tel, servicoSel, horaSel);
+        });
+
+        builder.setNegativeButton("Cancelar", null);
+        builder.show();
+    }
+
+    private void salvarAgendamentoManual(String nome, String tel, String servico, String hora) {
+        java.util.Map<String, Object> agendamento = new java.util.HashMap<>();
+        agendamento.put("nomeCliente", nome);
+        agendamento.put("telefone", tel);
+        agendamento.put("servico", servico);
+        agendamento.put("horario", hora);
+        agendamento.put("data", System.currentTimeMillis());
+        agendamento.put("status", "Pendente");
+
+        db.collection("agendamentos").add(agendamento)
+            .addOnSuccessListener(documentReference -> {
+                // Marcar horário como ocupado
+                db.collection("config_horarios")
+                    .whereEqualTo("hora", hora)
+                    .get()
+                    .addOnSuccessListener(querySnapshot -> {
+                        if (!querySnapshot.isEmpty()) {
+                            querySnapshot.getDocuments().get(0).getReference().update("disponivel", false);
+                        }
+                    });
+                Toast.makeText(this, "Agendado com sucesso!", Toast.LENGTH_SHORT).show();
+            })
+            .addOnFailureListener(e -> Toast.makeText(this, "Erro: " + e.getMessage(), Toast.LENGTH_SHORT).show());
     }
 
     private void verificarPermissaoNotificacao() {

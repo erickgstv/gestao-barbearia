@@ -1,27 +1,20 @@
-# Barbearia Gestão - App & Site
+# Barbearia Gestão - App Standalone
 
-Este é o sistema que desenvolvi para automatizar os agendamentos da minha barbearia. Ele resolve o problema de ficar combinando horários pelo WhatsApp, centralizando tudo em um app no meu celular e um site para os clientes.
+Este aplicativo foi desenvolvido para ser uma ferramenta completa de gestão para barbeiros. Ele permite o controle total da agenda, serviços e faturamento em um só lugar, eliminando a necessidade de agendas de papel ou sites externos.
 
-## 🔗 Link para Agendamento
-Os clientes agendam por aqui: [https://barbearia-gest.netlify.app/](https://barbearia-gest.netlify.app/)
+## 📱 Funcionalidades Principais
 
-## 🛠 Como o sistema funciona
+### Para o Barbeiro (Gestão):
+*   **Agendamento Manual:** Adicione clientes que chegam pelo WhatsApp ou presencialmente direto no app através do botão "+".
+*   **Agenda Dinâmica:** Visualize todos os atendimentos do dia organizados por horário.
+*   **Controle Financeiro:** O app calcula automaticamente o faturamento diário com base nos serviços concluídos.
+*   **Gestão de Serviços e Preços:** Edite o catálogo de serviços e valores a qualquer momento.
+*   **Gestão de Horários:** Defina quais horários estão disponíveis para trabalho.
 
-### O Site (Cliente)
-O cliente entra, escolhe o que quer fazer (Corte, Barba, etc) e vê os horários que eu deixei disponíveis. Assim que ele confirma, o horário sai da lista automaticamente para ninguém mais pegar o mesmo momento.
-
-### O Aplicativo (Meu controle)
-É por onde eu gerencio tudo no dia a dia:
-*   **Aviso de novo cliente:** O celular apita na hora que alguém agenda no site.
-*   **Agenda do dia:** Consigo ver quem vai vir, o que vai fazer e o contato (WhatsApp) da pessoa.
-*   **Controle de dinheiro:** O app soma o que eu ganhei no dia e mostra o histórico de faturamento.
-*   **Flexibilidade:** Posso mudar preços, cadastrar novos serviços ou fechar a barbearia em horários específicos direto pelo app.
-
-## 💻 Parte Técnica (resumida)
-*   **App:** Desenvolvido nativo para Android (Java).
-*   **Site:** HTML/JS dinâmico hospedado no Netlify.
-*   **Banco de Dados:** Firebase Firestore (sincroniza o site e o app em tempo real).
-*   **Segurança:** Configurado para não subir chaves sensíveis para o GitHub.
+## 🛠 Parte Técnica
+*   **Plataforma:** Android Nativo (Java).
+*   **Persistência:** Firebase Firestore para sincronização em nuvem.
+*   **Design:** Baseado na identidade visual do Spotify (Dark/Green).
 
 ---
-Criado para ser simples, rápido e funcional.
+Desenvolvido para ser uma solução rápida e eficiente para gestão de barbearias individuais.
