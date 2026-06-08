@@ -44,19 +44,19 @@ import java.util.stream.Collectors;
 
 public class MainActivity extends AppCompatActivity {
 
-    private RecyclerView rvAgendamentos, rvHorariosRapidos, rvServicosRapidos;
+    private RecyclerView rvAgendamentos, rvHorarios, rvServicos;
     private AgendamentoAdapter adapter;
-    private HorarioRapidoAdapter horarioRapidoAdapter;
-    private ServicoRapidoAdapter servicoRapidoAdapter;
-    private List<Agendamento> listaAgendamentos;
-    private List<Horario> listaHorariosRapidos;
-    private List<Servico> listaServicosRapidos;
+    private HorarioRapidoAdapter horarioAdapter;
+    private ServicoRapidoAdapter servicoAdapter;
+    private List<Agendamento> agendamentos;
+    private List<Horario> horarios;
+    private List<Servico> servicos;
     private FirebaseFirestore db;
 
-    private TextView tvFaturamentoHoje, tvServicosHoje;
-    private double faturamentoTotal = 0.0;
-    private int servicosConcluidos = 0;
-    private boolean primeiraCarga = true;
+    private TextView tvFaturamento, tvTotalServicos;
+    private double faturamento = 0.0;
+    private int concluidos = 0;
+    private boolean carregando = true;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -64,10 +64,10 @@ public class MainActivity extends AppCompatActivity {
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_main);
 
-        criarCanalNotificacao();
+        configurarNotificacoes();
 
-        tvFaturamentoHoje = findViewById(R.id.tvFaturamentoHoje);
-        tvServicosHoje = findViewById(R.id.tvServicosHoje);
+        tvFaturamento = findViewById(R.id.tvFaturamentoHoje);
+        tvTotalServicos = findViewById(R.id.tvServicosHoje);
 
         androidx.appcompat.widget.Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
@@ -79,52 +79,48 @@ public class MainActivity extends AppCompatActivity {
         });
 
         db = FirebaseFirestore.getInstance();
-        listaAgendamentos = new ArrayList<>();
+        agendamentos = new ArrayList<>();
 
         rvAgendamentos = findViewById(R.id.rvAgendamentos);
         rvAgendamentos.setLayoutManager(new LinearLayoutManager(this));
-        adapter = new AgendamentoAdapter(listaAgendamentos);
+        adapter = new AgendamentoAdapter(agendamentos);
         rvAgendamentos.setAdapter(adapter);
 
-        rvHorariosRapidos = findViewById(R.id.rvHorariosRapidos);
-        rvHorariosRapidos.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
-        listaHorariosRapidos = new ArrayList<>();
-        horarioRapidoAdapter = new HorarioRapidoAdapter(listaHorariosRapidos);
-        rvHorariosRapidos.setAdapter(horarioRapidoAdapter);
+        rvHorarios = findViewById(R.id.rvHorariosRapidos);
+        rvHorarios.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
+        horarios = new ArrayList<>();
+        horarioAdapter = new HorarioRapidoAdapter(horarios);
+        rvHorarios.setAdapter(horarioAdapter);
 
-        rvServicosRapidos = findViewById(R.id.rvServicosRapidos);
-        rvServicosRapidos.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
-        listaServicosRapidos = new ArrayList<>();
-        servicoRapidoAdapter = new ServicoRapidoAdapter(listaServicosRapidos);
-        rvServicosRapidos.setAdapter(servicoRapidoAdapter);
+        rvServicos = findViewById(R.id.rvServicosRapidos);
+        rvServicos.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
+        servicos = new ArrayList<>();
+        servicoAdapter = new ServicoRapidoAdapter(servicos);
+        rvServicos.setAdapter(servicoAdapter);
 
-        BottomNavigationView bottomNav = findViewById(R.id.bottom_navigation);
-        bottomNav.setOnItemSelectedListener(item -> {
+        BottomNavigationView nav = findViewById(R.id.bottom_navigation);
+        nav.setOnItemSelectedListener(item -> {
             int id = item.getItemId();
             if (id == R.id.nav_servicos) {
                 startActivity(new Intent(this, GestaoServicosActivity.class));
-                return true;
             } else if (id == R.id.nav_horarios) {
                 startActivity(new Intent(this, GestaoHorariosActivity.class));
-                return true;
             } else if (id == R.id.nav_relatorios) {
                 startActivity(new Intent(this, RelatoriosActivity.class));
-                return true;
             }
             return true;
         });
 
-        ouvirDadosRapidos();
-        ouvirAgendamentos();
-        verificarPermissaoNotificacao();
+        fetchConfig();
+        observeAgendamentos();
+        checkPermissions();
 
-        FloatingActionButton fab = findViewById(R.id.fabAddAgendamento);
-        fab.setOnClickListener(v -> mostrarDialogoNovoAgendamento());
+        findViewById(R.id.fabAddAgendamento).setOnClickListener(v -> showManualAddDialog());
     }
 
-    private void mostrarDialogoNovoAgendamento() {
+    private void showManualAddDialog() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("Novo Agendamento Manual");
+        builder.setTitle("Novo Agendamento");
 
         LinearLayout layout = new LinearLayout(this);
         layout.setOrientation(LinearLayout.VERTICAL);
@@ -134,72 +130,62 @@ public class MainActivity extends AppCompatActivity {
         etNome.setHint("Nome do Cliente");
         layout.addView(etNome);
 
-        final EditText etTelefone = new EditText(this);
-        etTelefone.setHint("WhatsApp (00) 90000-0000");
-        layout.addView(etTelefone);
+        final EditText etTel = new EditText(this);
+        etTel.setHint("Telefone");
+        layout.addView(etTel);
 
         final Spinner spServico = new Spinner(this);
-        List<String> nomesServicos = listaServicosRapidos.stream()
+        List<String> listServicos = servicos.stream()
                 .map(s -> s.getNome() + " - R$ " + String.format("%.2f", s.getPreco()))
                 .collect(Collectors.toList());
-        ArrayAdapter<String> adapterServico = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, nomesServicos);
-        spServico.setAdapter(adapterServico);
+        spServico.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, listServicos));
         layout.addView(spServico);
 
-        final Spinner spHorario = new Spinner(this);
-        List<String> horasDisponiveis = listaHorariosRapidos.stream()
+        final Spinner spHora = new Spinner(this);
+        List<String> listHoras = horarios.stream()
                 .filter(Horario::isDisponivel)
                 .map(Horario::getHora)
                 .collect(Collectors.toList());
-        ArrayAdapter<String> adapterHorario = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, horasDisponiveis);
-        spHorario.setAdapter(adapterHorario);
-        layout.addView(spHorario);
+        spHora.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, listHoras));
+        layout.addView(spHora);
 
         builder.setView(layout);
-
-        builder.setPositiveButton("Agendar", (dialog, which) -> {
+        builder.setPositiveButton("Salvar", (dialog, which) -> {
             String nome = etNome.getText().toString().trim();
-            String tel = etTelefone.getText().toString().trim();
-            String servicoSel = spServico.getSelectedItem() != null ? spServico.getSelectedItem().toString() : "";
-            String horaSel = spHorario.getSelectedItem() != null ? spHorario.getSelectedItem().toString() : "";
+            String tel = etTel.getText().toString().trim();
+            String serv = spServico.getSelectedItem() != null ? spServico.getSelectedItem().toString() : "";
+            String hora = spHora.getSelectedItem() != null ? spHora.getSelectedItem().toString() : "";
 
-            if (nome.isEmpty() || tel.isEmpty() || servicoSel.isEmpty() || horaSel.isEmpty()) {
-                Toast.makeText(this, "Preencha todos os campos!", Toast.LENGTH_SHORT).show();
-                return;
+            if (!nome.isEmpty() && !tel.isEmpty() && !serv.isEmpty() && !hora.isEmpty()) {
+                saveManual(nome, tel, serv, hora);
+            } else {
+                Toast.makeText(this, "Preencha tudo!", Toast.LENGTH_SHORT).show();
             }
-
-            salvarAgendamentoManual(nome, tel, servicoSel, horaSel);
         });
-
-        builder.setNegativeButton("Cancelar", null);
+        builder.setNegativeButton("Sair", null);
         builder.show();
     }
 
-    private void salvarAgendamentoManual(String nome, String tel, String servico, String hora) {
-        java.util.Map<String, Object> data = new java.util.HashMap<>();
-        data.put("nomeCliente", nome);
-        data.put("telefone", tel);
-        data.put("servico", servico);
-        data.put("horario", hora);
-        data.put("data", System.currentTimeMillis());
-        data.put("status", "Pendente");
+    private void saveManual(String nome, String tel, String serv, String hora) {
+        java.util.Map<String, Object> map = new java.util.HashMap<>();
+        map.put("nomeCliente", nome);
+        map.put("telefone", tel);
+        map.put("servico", serv);
+        map.put("horario", hora);
+        map.put("data", System.currentTimeMillis());
+        map.put("status", "Pendente");
 
-        db.collection("agendamentos").add(data)
+        db.collection("agendamentos").add(map)
             .addOnSuccessListener(doc -> {
-                db.collection("config_horarios")
-                    .whereEqualTo("hora", hora)
-                    .get()
+                db.collection("config_horarios").whereEqualTo("hora", hora).get()
                     .addOnSuccessListener(snap -> {
-                        if (!snap.isEmpty()) {
-                            snap.getDocuments().get(0).getReference().update("disponivel", false);
-                        }
+                        if (!snap.isEmpty()) snap.getDocuments().get(0).getReference().update("disponivel", false);
                     });
-                Toast.makeText(this, "Agendado!", Toast.LENGTH_SHORT).show();
-            })
-            .addOnFailureListener(e -> Toast.makeText(this, "Erro ao salvar", Toast.LENGTH_SHORT).show());
+                Toast.makeText(this, "Salvo!", Toast.LENGTH_SHORT).show();
+            });
     }
 
-    private void verificarPermissaoNotificacao() {
+    private void checkPermissions() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
                 ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.POST_NOTIFICATIONS}, 101);
@@ -207,60 +193,56 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private void ouvirAgendamentos() {
+    private void observeAgendamentos() {
         db.collection("agendamentos")
             .orderBy("data", Query.Direction.DESCENDING)
             .addSnapshotListener((value, error) -> {
-                if (error != null) return;
+                if (error != null || value == null) return;
                 
-                if (value != null) {
-                    for (DocumentChange dc : value.getDocumentChanges()) {
-                        if (dc.getType() == DocumentChange.Type.ADDED && !primeiraCarga) {
-                            try {
-                                Agendamento novo = dc.getDocument().toObject(Agendamento.class);
-                                notificarNovoAgendamento(novo);
-                            } catch (Exception ignored) {}
-                        }
-                    }
-                    primeiraCarga = false;
-
-                    listaAgendamentos.clear();
-                    faturamentoTotal = 0;
-                    servicosConcluidos = 0;
-
-                    for (QueryDocumentSnapshot doc : value) {
+                for (DocumentChange dc : value.getDocumentChanges()) {
+                    if (dc.getType() == DocumentChange.Type.ADDED && !carregando) {
                         try {
-                            Agendamento agendamento = doc.toObject(Agendamento.class);
-                            agendamento.setId(doc.getId());
-                            listaAgendamentos.add(agendamento);
-
-                            if ("Concluído".equals(agendamento.getStatus())) {
-                                servicosConcluidos++;
-                                faturamentoTotal += extrairPreco(agendamento.getServico());
-                            }
+                            notificarNovoAgendamento(dc.getDocument().toObject(Agendamento.class));
                         } catch (Exception ignored) {}
                     }
-                    adapter.notifyDataSetChanged();
-                    atualizarResumoCapa();
-                    salvarRelatorioNoFirestore();
                 }
+                carregando = false;
+
+                agendamentos.clear();
+                faturamento = 0;
+                concluidos = 0;
+
+                for (QueryDocumentSnapshot doc : value) {
+                    try {
+                        Agendamento a = doc.toObject(Agendamento.class);
+                        a.setId(doc.getId());
+                        agendamentos.add(a);
+
+                        if ("Concluído".equals(a.getStatus())) {
+                            concluidos++;
+                            faturamento += extrairPreco(a.getServico());
+                        }
+                    } catch (Exception ignored) {}
+                }
+                adapter.notifyDataSetChanged();
+                updateUI();
+                saveDailyReport();
             });
     }
 
-    private void criarCanalNotificacao() {
+    private void configurarNotificacoes() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationChannel channel = new NotificationChannel("agendamentos", "Agendamentos", NotificationManager.IMPORTANCE_HIGH);
-            channel.setDescription("Notificações de novos agendamentos");
             NotificationManager manager = getSystemService(NotificationManager.class);
             if (manager != null) manager.createNotificationChannel(channel);
         }
     }
 
-    private void notificarNovoAgendamento(Agendamento agendamento) {
+    private void notificarNovoAgendamento(Agendamento a) {
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this, "agendamentos")
                 .setSmallIcon(android.R.drawable.ic_dialog_info)
-                .setContentTitle("Novo Agendamento!")
-                .setContentText(agendamento.getNomeCliente() + " agendou às " + agendamento.getHorario())
+                .setContentTitle("Novo Agendamento")
+                .setContentText(a.getNomeCliente() + " às " + a.getHorario())
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setAutoCancel(true);
 
@@ -268,71 +250,53 @@ public class MainActivity extends AppCompatActivity {
         if (manager != null) manager.notify((int) System.currentTimeMillis(), builder.build());
     }
 
-    private double extrairPreco(String servicoText) {
+    private double extrairPreco(String text) {
         try {
-            if (servicoText.contains("R$")) {
-                String precoStr = servicoText.split("R\\$")[1].trim().replace(",", ".");
-                return Double.parseDouble(precoStr);
+            if (text.contains("R$")) {
+                return Double.parseDouble(text.split("R\\$")[1].trim().replace(",", "."));
             }
-        } catch (Exception e) {
-            return 0.0;
-        }
+        } catch (Exception ignored) {}
         return 0.0;
     }
 
-    private void atualizarResumoCapa() {
-        if (tvFaturamentoHoje != null) {
-            tvFaturamentoHoje.setText(String.format(java.util.Locale.getDefault(), "R$ %.2f", faturamentoTotal));
-        }
-        if (tvServicosHoje != null) {
-            tvServicosHoje.setText(String.valueOf(servicosConcluidos));
-        }
+    private void updateUI() {
+        if (tvFaturamento != null) tvFaturamento.setText(String.format(java.util.Locale.getDefault(), "R$ %.2f", faturamento));
+        if (tvTotalServicos != null) tvTotalServicos.setText(String.valueOf(concluidos));
     }
 
-    private void salvarRelatorioNoFirestore() {
-        String dataHoje = new java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(new java.util.Date());
-        java.util.Map<String, Object> relatorio = new java.util.HashMap<>();
-        relatorio.put("data", dataHoje);
-        relatorio.put("faturamento", faturamentoTotal);
-        relatorio.put("totalServicos", servicosConcluidos);
-        relatorio.put("timestamp", com.google.firebase.Timestamp.now());
-
-        db.collection("relatorios_diarios").document(dataHoje).set(relatorio);
+    private void saveDailyReport() {
+        String today = new java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(new java.util.Date());
+        java.util.Map<String, Object> report = new java.util.HashMap<>();
+        report.put("data", today);
+        report.put("faturamento", faturamento);
+        report.put("totalServicos", concluidos);
+        report.put("timestamp", com.google.firebase.Timestamp.now());
+        db.collection("relatorios_diarios").document(today).set(report);
     }
 
-    private void ouvirDadosRapidos() {
+    private void fetchConfig() {
         db.collection("config_horarios").orderBy("hora")
-            .addSnapshotListener((value, error) -> {
-                if (error != null) {
-                    android.util.Log.e("FirestoreError", "Erro ao ouvir horários rápidos", error);
-                    return;
+            .addSnapshotListener((v, e) -> {
+                if (v == null) return;
+                horarios.clear();
+                for (QueryDocumentSnapshot doc : v) {
+                    Horario h = doc.toObject(Horario.class);
+                    h.setId(doc.getId());
+                    horarios.add(h);
                 }
-                if (value != null) {
-                    listaHorariosRapidos.clear();
-                    for (QueryDocumentSnapshot doc : value) {
-                        Horario h = doc.toObject(Horario.class);
-                        h.setId(doc.getId());
-                        listaHorariosRapidos.add(h);
-                    }
-                    horarioRapidoAdapter.notifyDataSetChanged();
-                }
+                horarioAdapter.notifyDataSetChanged();
             });
 
         db.collection("servicos").orderBy("nome")
-            .addSnapshotListener((value, error) -> {
-                if (error != null) {
-                    android.util.Log.e("FirestoreError", "Erro ao ouvir serviços rápidos", error);
-                    return;
+            .addSnapshotListener((v, e) -> {
+                if (v == null) return;
+                servicos.clear();
+                for (QueryDocumentSnapshot doc : v) {
+                    Servico s = doc.toObject(Servico.class);
+                    s.setId(doc.getId());
+                    servicos.add(s);
                 }
-                if (value != null) {
-                    listaServicosRapidos.clear();
-                    for (QueryDocumentSnapshot doc : value) {
-                        Servico s = doc.toObject(Servico.class);
-                        s.setId(doc.getId());
-                        listaServicosRapidos.add(s);
-                    }
-                    servicoRapidoAdapter.notifyDataSetChanged();
-                }
+                servicoAdapter.notifyDataSetChanged();
             });
     }
 }
