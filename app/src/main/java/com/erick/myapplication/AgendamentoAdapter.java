@@ -52,7 +52,6 @@ public class AgendamentoAdapter extends RecyclerView.Adapter<AgendamentoAdapter.
 
         holder.tvServico.setText(agendamento.getServico());
         
-        // Exibir Data e Hora
         String dataFormatada = agendamento.getData() != null ? dateFormat.format(agendamento.getData()) : "";
         holder.tvHorario.setText(String.format("%s às %s", dataFormatada, agendamento.getHorario()));
         
@@ -98,7 +97,6 @@ public class AgendamentoAdapter extends RecyclerView.Adapter<AgendamentoAdapter.
                     new DatePickerDialog(holder.itemView.getContext(), (view1, year, month, dayOfMonth) -> {
                         calendar.set(year, month, dayOfMonth);
                         agendamento.setData(calendar.getTimeInMillis());
-                        // Reabre o diálogo com a nova data selecionada
                         mostrarDialogoRemarcar(holder, agendamento);
                     }, calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH), calendar.get(Calendar.DAY_OF_MONTH)).show();
                 })
@@ -110,7 +108,7 @@ public class AgendamentoAdapter extends RecyclerView.Adapter<AgendamentoAdapter.
                             .collection("agendamentos")
                             .document(agendamento.getId())
                             .update("nomeCliente", novoNome, "horario", novaHora, "data", calendar.getTimeInMillis())
-                            .addOnSuccessListener(aVoid -> Toast.makeText(holder.itemView.getContext(), "Atualizado!", Toast.LENGTH_SHORT).show());
+                            .addOnSuccessListener(v -> Toast.makeText(holder.itemView.getContext(), "Atualizado!", Toast.LENGTH_SHORT).show());
                 })
                 .setNegativeButton("Voltar", null)
                 .show();

@@ -81,27 +81,23 @@ public class MainActivity extends AppCompatActivity {
         db = FirebaseFirestore.getInstance();
         listaAgendamentos = new ArrayList<>();
 
-        // 1. Lista Principal (Agendamentos)
         rvAgendamentos = findViewById(R.id.rvAgendamentos);
         rvAgendamentos.setLayoutManager(new LinearLayoutManager(this));
         adapter = new AgendamentoAdapter(listaAgendamentos);
         rvAgendamentos.setAdapter(adapter);
 
-        // 2. Barra Spotify - Horários Rápidos
         rvHorariosRapidos = findViewById(R.id.rvHorariosRapidos);
         rvHorariosRapidos.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
         listaHorariosRapidos = new ArrayList<>();
         horarioRapidoAdapter = new HorarioRapidoAdapter(listaHorariosRapidos);
         rvHorariosRapidos.setAdapter(horarioRapidoAdapter);
 
-        // 3. Barra Spotify - Serviços Rápidos
         rvServicosRapidos = findViewById(R.id.rvServicosRapidos);
         rvServicosRapidos.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
         listaServicosRapidos = new ArrayList<>();
         servicoRapidoAdapter = new ServicoRapidoAdapter(listaServicosRapidos);
         rvServicosRapidos.setAdapter(servicoRapidoAdapter);
 
-        // 4. Navegação Inferior
         BottomNavigationView bottomNav = findViewById(R.id.bottom_navigation);
         bottomNav.setOnItemSelectedListener(item -> {
             int id = item.getItemId();
@@ -142,7 +138,6 @@ public class MainActivity extends AppCompatActivity {
         etTelefone.setHint("WhatsApp (00) 90000-0000");
         layout.addView(etTelefone);
 
-        // Spinner de Serviços
         final Spinner spServico = new Spinner(this);
         List<String> nomesServicos = listaServicosRapidos.stream()
                 .map(s -> s.getNome() + " - R$ " + String.format("%.2f", s.getPreco()))
@@ -151,7 +146,6 @@ public class MainActivity extends AppCompatActivity {
         spServico.setAdapter(adapterServico);
         layout.addView(spServico);
 
-        // Spinner de Horários
         final Spinner spHorario = new Spinner(this);
         List<String> horasDisponiveis = listaHorariosRapidos.stream()
                 .filter(Horario::isDisponivel)
@@ -182,28 +176,27 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void salvarAgendamentoManual(String nome, String tel, String servico, String hora) {
-        java.util.Map<String, Object> agendamento = new java.util.HashMap<>();
-        agendamento.put("nomeCliente", nome);
-        agendamento.put("telefone", tel);
-        agendamento.put("servico", servico);
-        agendamento.put("horario", hora);
-        agendamento.put("data", System.currentTimeMillis());
-        agendamento.put("status", "Pendente");
+        java.util.Map<String, Object> data = new java.util.HashMap<>();
+        data.put("nomeCliente", nome);
+        data.put("telefone", tel);
+        data.put("servico", servico);
+        data.put("horario", hora);
+        data.put("data", System.currentTimeMillis());
+        data.put("status", "Pendente");
 
-        db.collection("agendamentos").add(agendamento)
-            .addOnSuccessListener(documentReference -> {
-                // Marcar horário como ocupado
+        db.collection("agendamentos").add(data)
+            .addOnSuccessListener(doc -> {
                 db.collection("config_horarios")
                     .whereEqualTo("hora", hora)
                     .get()
-                    .addOnSuccessListener(querySnapshot -> {
-                        if (!querySnapshot.isEmpty()) {
-                            querySnapshot.getDocuments().get(0).getReference().update("disponivel", false);
+                    .addOnSuccessListener(snap -> {
+                        if (!snap.isEmpty()) {
+                            snap.getDocuments().get(0).getReference().update("disponivel", false);
                         }
                     });
-                Toast.makeText(this, "Agendado com sucesso!", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Agendado!", Toast.LENGTH_SHORT).show();
             })
-            .addOnFailureListener(e -> Toast.makeText(this, "Erro: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+            .addOnFailureListener(e -> Toast.makeText(this, "Erro ao salvar", Toast.LENGTH_SHORT).show());
     }
 
     private void verificarPermissaoNotificacao() {
@@ -215,44 +208,37 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void ouvirAgendamentos() {
-        java.util.Calendar cal = java.util.Calendar.getInstance();
-        cal.set(java.util.Calendar.HOUR_OF_DAY, 0);
-        cal.set(java.util.Calendar.MINUTE, 0);
-        cal.set(java.util.Calendar.SECOND, 0);
-        cal.set(java.util.Calendar.MILLISECOND, 0);
-        long inicioHoje = cal.getTimeInMillis();
-
         db.collection("agendamentos")
-            .whereGreaterThanOrEqualTo("data", inicioHoje)
-            .orderBy("data", Query.Direction.ASCENDING) 
+            .orderBy("data", Query.Direction.DESCENDING)
             .addSnapshotListener((value, error) -> {
-                if (error != null) {
-                    android.util.Log.e("FirestoreError", "Erro ao ouvir agendamentos", error);
-                    return;
-                }
+                if (error != null) return;
+                
                 if (value != null) {
-                    // Detectar se há novos agendamentos para notificar
                     for (DocumentChange dc : value.getDocumentChanges()) {
                         if (dc.getType() == DocumentChange.Type.ADDED && !primeiraCarga) {
-                            Agendamento novo = dc.getDocument().toObject(Agendamento.class);
-                            notificarNovoAgendamento(novo);
+                            try {
+                                Agendamento novo = dc.getDocument().toObject(Agendamento.class);
+                                notificarNovoAgendamento(novo);
+                            } catch (Exception ignored) {}
                         }
                     }
                     primeiraCarga = false;
 
-                    listaAgendamentos.clear(); 
+                    listaAgendamentos.clear();
                     faturamentoTotal = 0;
                     servicosConcluidos = 0;
 
                     for (QueryDocumentSnapshot doc : value) {
-                        Agendamento agendamento = doc.toObject(Agendamento.class);
-                        agendamento.setId(doc.getId());
-                        listaAgendamentos.add(agendamento);
+                        try {
+                            Agendamento agendamento = doc.toObject(Agendamento.class);
+                            agendamento.setId(doc.getId());
+                            listaAgendamentos.add(agendamento);
 
-                        if ("Concluído".equals(agendamento.getStatus())) {
-                            servicosConcluidos++;
-                            faturamentoTotal += extrairPreco(agendamento.getServico());
-                        }
+                            if ("Concluído".equals(agendamento.getStatus())) {
+                                servicosConcluidos++;
+                                faturamentoTotal += extrairPreco(agendamento.getServico());
+                            }
+                        } catch (Exception ignored) {}
                     }
                     adapter.notifyDataSetChanged();
                     atualizarResumoCapa();
